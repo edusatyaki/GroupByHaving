@@ -1,0 +1,604 @@
+<title>GROUP BY &amp; HAVING</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap">
+<style>
+  :root{
+    --ink:#16191D; --body:#5B6271; --muted:#7B869D; --faint:#8C95A6;
+    --line:#E8EAEE; --line2:#EDEFF3; --surface:#F6F7F9; --surface2:#F9FAFB; --white:#FFFFFF;
+    --blue:#0673F9; --blue-dk:#0159C9; --blue-tint:#EAF2FE;
+    --green:#009965; --green-dk:#007A50; --green-tint:#D1F5E9;
+    --red:#D92D20; --red-tint:#FEE4E2; --amber:#B54708;
+    --display:"Figtree",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    --sans:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden}
+  body{background:var(--white);font-family:var(--sans);color:var(--body)}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+  :focus-visible{outline:3px solid var(--blue);outline-offset:2px;border-radius:5px}
+
+  .stage{position:fixed;inset:0;overflow:hidden}
+  .slide{
+    position:absolute;left:50%;top:50%;
+    width:1600px;height:900px;background:var(--white);
+    transform-origin:center center;
+    display:flex;flex-direction:column;padding:16px 24px;gap:10px;
+  }
+
+  /* ---------------- header ---------------- */
+  .hdr{display:flex;align-items:center;gap:14px;flex:0 0 auto;min-width:0}
+  .ttl{font-family:var(--display);font-size:33px;font-weight:700;color:var(--ink);letter-spacing:-.03em;white-space:nowrap;line-height:1;flex:0 0 auto}
+  .ttl .c{font-family:var(--mono);font-weight:600;color:var(--green);letter-spacing:-.055em}
+
+  .stepper{display:flex;gap:6px;align-items:center;flex:1 1 auto;justify-content:center;min-width:0}
+  .step{
+    display:flex;align-items:center;gap:9px;background:var(--white);border:2px solid var(--line);
+    padding:8px 13px;border-radius:99px;cursor:pointer;font-size:18px;font-weight:600;
+    color:var(--muted);font-family:var(--sans);transition:.15s;white-space:nowrap;line-height:1;
+  }
+  .step .n{
+    width:25px;height:25px;border-radius:50%;display:grid;place-items:center;flex:0 0 auto;
+    background:var(--surface);color:var(--faint);font-size:15px;font-family:var(--mono);font-weight:600;
+  }
+  .step:hover{border-color:var(--blue);color:var(--blue)}
+  .step.done{color:var(--ink)}
+  .step.done .n{background:var(--green-tint);color:var(--green-dk)}
+  .step.live{background:var(--blue);border-color:var(--blue);color:#fff}
+  .step.live .n{background:rgba(255,255,255,.3);color:#fff}
+
+  .btns{display:flex;gap:8px;align-items:center;flex:0 0 auto}
+  .btn{
+    font-family:var(--sans);font-size:18px;font-weight:600;border-radius:9px;padding:9px 15px;
+    border:2px solid transparent;cursor:pointer;line-height:1.15;white-space:nowrap;transition:.15s;
+  }
+  .btn-blue{background:var(--blue);color:#fff}
+  .btn-blue:hover{background:var(--blue-dk)}
+  .btn-green{background:var(--green);color:#fff}
+  .btn-green:hover{background:var(--green-dk)}
+  .btn-ghost{background:var(--white);color:var(--ink);border-color:var(--line)}
+  .btn-ghost:hover{border-color:var(--blue);color:var(--blue)}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+
+  /* ---------------- narration ---------------- */
+  .narrate{
+    flex:0 0 auto;display:flex;align-items:center;gap:14px;padding:13px 18px;
+    background:var(--blue-tint);border-left:6px solid var(--blue);border-radius:0 9px 9px 0;
+  }
+  .narrate .badge{
+    font-family:var(--mono);font-size:16px;font-weight:600;background:var(--blue);color:#fff;
+    padding:5px 12px;border-radius:6px;flex:0 0 auto;line-height:1.2;
+  }
+  .narrate p{margin:0;font-size:27px;line-height:1.28;color:#14375E;font-weight:500}
+  .narrate b{color:var(--ink);font-weight:700}
+
+  /* ---------------- body grid ---------------- */
+  .grid{flex:1 1 auto;display:grid;grid-template-columns:275px 275px 550px minmax(0,1fr);gap:12px;min-height:0}
+  .col{display:flex;flex-direction:column;gap:12px;min-height:0;min-width:0}
+  .groupsrow{flex:0 0 268px;min-height:0}
+
+  .card{
+    background:var(--white);border:2px solid var(--line);border-radius:13px;
+    display:flex;flex-direction:column;min-height:0;overflow:hidden;
+  }
+  .card.grow{flex:1 1 auto}
+  .card .hd{
+    padding:9px 14px;border-bottom:2px solid var(--line2);background:var(--surface2);
+    display:flex;align-items:center;justify-content:space-between;gap:10px;flex:0 0 auto;
+  }
+  .card .hd h3{
+    margin:0;font-size:16px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);
+    font-weight:700;font-family:var(--sans);line-height:1.2;
+  }
+  .card .bd{padding:12px;overflow:hidden;min-height:0}
+  .pill{
+    font-size:16px;font-weight:600;color:var(--muted);background:var(--white);
+    border:2px solid var(--line);border-radius:99px;padding:2px 11px;white-space:nowrap;
+    font-variant-numeric:tabular-nums;line-height:1.35;
+  }
+
+  /* ---------------- controls ---------------- */
+  .field{margin-bottom:11px}
+  .field:last-child{margin-bottom:0}
+  label.lb{display:block;font-size:14px;letter-spacing:.07em;text-transform:uppercase;color:var(--faint);font-weight:700;margin-bottom:5px;line-height:1.2}
+  select,input[type=number]{
+    width:100%;background:var(--white);color:var(--ink);border:2px solid var(--line);
+    border-radius:8px;padding:8px 10px;font-family:var(--mono);font-size:18px;outline:none;line-height:1.3;
+  }
+  select:focus,input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(6,115,249,.15)}
+  .row2{display:grid;grid-template-columns:88px 1fr;gap:9px}
+  input[type=range]{width:100%;accent-color:var(--blue);margin-top:8px;height:18px}
+  .switch{display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;margin-bottom:9px}
+  .switch input{position:absolute;opacity:0;width:0;height:0}
+  .track{width:42px;height:24px;border-radius:99px;background:#DDE1E8;position:relative;transition:background .18s;flex:0 0 auto}
+  .track::after{content:"";position:absolute;top:2.5px;left:2.5px;width:19px;height:19px;border-radius:50%;background:#fff;transition:left .18s;box-shadow:0 1px 3px rgba(0,0,0,.22)}
+  .switch input:checked + .track{background:var(--green)}
+  .switch input:checked + .track::after{left:20.5px}
+  .switch .txt{font-size:17px;color:var(--ink);font-weight:500}
+
+  /* ---------------- sql ---------------- */
+  pre.sql{margin:0;font-family:var(--mono);font-size:19px;line-height:1.62;white-space:pre-wrap;word-break:break-word}
+  .kw{color:#8B3DCF;font-weight:600}
+  .fn{color:var(--green-dk);font-weight:500}
+  .str{color:var(--amber)}
+  .num{color:var(--blue-dk)}
+  .clause{
+    display:block;padding:2px 8px;margin:0 -8px;border-radius:6px;color:var(--ink);
+    border-left:4px solid transparent;transition:background .2s,border-color .2s,opacity .2s;opacity:.5;
+  }
+  .clause.live{background:var(--blue-tint);border-left-color:var(--blue);opacity:1}
+  .clause.done{opacity:.92}
+  .clause.off{opacity:.3;text-decoration:line-through;text-decoration-color:var(--faint)}
+
+  /* ---------------- table ---------------- */
+  .tbl{width:100%;height:100%;overflow:hidden}
+  table{border-collapse:collapse;width:100%;table-layout:auto}
+  th{
+    text-align:left;font-size:16px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);
+    font-weight:700;padding:7px 10px;border-bottom:2px solid var(--line);white-space:nowrap;
+    background:var(--surface2);line-height:1.2;
+  }
+  td{
+    padding:9px 10px;border-bottom:1px solid var(--line2);font-family:var(--mono);
+    font-size:20px;white-space:nowrap;color:var(--ink);font-variant-numeric:tabular-nums;line-height:1.3;
+  }
+  td.mark{width:34px;text-align:center;font-size:19px;font-weight:700;padding-right:0}
+  tbody tr{transition:opacity .3s,background .3s}
+  tr.rejected{background:#FFF6F5}
+  tr.rejected td{color:#B9424A;text-decoration:line-through;text-decoration-color:#E5A0A5}
+  tr.rejected td.mark{color:var(--red);text-decoration:none}
+  tr.kept{background:#FAFEFC}
+  tr.kept td.mark{color:var(--green)}
+  .grpdot{display:inline-block;width:12px;height:12px;border-radius:3.5px;margin-right:8px;vertical-align:0}
+
+  /* ---------------- buckets ---------------- */
+  .buckets{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:12px;height:100%}
+  .bucket{
+    border:2px solid var(--line);border-radius:11px;overflow:hidden;background:var(--white);
+    animation:pop .3s ease-out both;display:flex;flex-direction:column;min-height:0;
+  }
+  @keyframes pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .bucket .bh{
+    padding:8px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;
+    border-bottom:2px solid var(--line2);background:var(--surface2);flex:0 0 auto;
+  }
+  .bucket .bh .key{
+    font-weight:700;font-size:22px;color:var(--ink);display:flex;align-items:center;
+    font-family:var(--display);min-width:0;line-height:1.2;
+  }
+  .bucket .bh .key span.t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .bucket .bh .cnt{font-family:var(--mono);font-size:16px;color:var(--faint);white-space:nowrap;flex:0 0 auto}
+  .vals{
+    padding:8px 12px;flex:1 1 auto;min-height:0;overflow:hidden;
+    font-family:var(--mono);font-size:19px;line-height:1.36;color:var(--body);
+    font-variant-numeric:tabular-nums;word-spacing:.05em;
+  }
+  .vals i{font-style:normal;color:#C3CAD6;padding:0 2px}
+  .aggbox{
+    margin:0 12px 10px;padding:8px 11px;border-radius:8px;background:var(--blue-tint);border:2px solid #CFE2FD;
+    display:flex;justify-content:space-between;gap:9px;align-items:center;animation:pop .24s both;flex:0 0 auto;
+  }
+  .aggbox .l{font-family:var(--mono);font-size:16px;color:var(--blue-dk);white-space:nowrap}
+  .aggbox .v{font-family:var(--display);font-weight:700;font-size:30px;color:var(--ink);font-variant-numeric:tabular-nums;line-height:1}
+  .verdict{
+    padding:8px 12px;font-family:var(--mono);font-size:17px;border-top:2px solid var(--line2);
+    line-height:1.25;flex:0 0 auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .bucket.pass{border-color:var(--green)}
+  .bucket.pass .bh{background:var(--green-tint);border-bottom-color:#A9E7CE}
+  .bucket.pass .verdict{background:var(--green-tint);color:var(--green-dk);font-weight:600}
+  .bucket.fail{border-color:var(--line);background:var(--surface2)}
+  .bucket.fail .vals{opacity:.55}
+  .bucket.fail .aggbox{opacity:.62}
+  .bucket.fail .bh .key{color:var(--muted)}
+  .bucket.fail .verdict{background:var(--red-tint);color:var(--red);font-weight:600}
+
+  .idle{
+    display:flex;align-items:center;justify-content:center;height:100%;color:var(--faint);
+    font-size:19px;font-family:var(--mono);text-align:center;padding:10px;
+  }
+  .idle.warn{color:var(--red)}
+</style>
+
+<div class="stage">
+<div class="slide" id="slide">
+
+  <div class="hdr">
+    <div class="ttl"><span class="c">GROUP BY</span> &amp; <span class="c">HAVING</span></div>
+    <div class="stepper" id="stepper"></div>
+    <div class="btns">
+      <button class="btn btn-ghost" id="btn-prev">‹</button>
+      <button class="btn btn-blue" id="btn-next">Next ›</button>
+      <button class="btn btn-green" id="btn-play">▶ Play</button>
+      <button class="btn btn-ghost" id="btn-reset">↺</button>
+      <button class="btn btn-ghost" id="btn-full" title="Fullscreen (F)">⛶</button>
+    </div>
+  </div>
+
+  <div class="narrate">
+    <span class="badge" id="nar-badge">FROM</span>
+    <p id="nar-text"></p>
+  </div>
+
+  <div class="grid">
+
+    <div class="card">
+      <div class="hd"><h3>Query</h3></div>
+      <div class="bd">
+        <div class="field">
+          <label class="lb" for="c-where">WHERE — rows</label>
+          <select id="c-where">
+            <option value="none">(no WHERE)</option>
+            <option value="sal60">salary &gt;= 60000</option>
+            <option value="sal50">salary &gt;= 50000</option>
+            <option value="mum">city = 'Mumbai'</option>
+            <option value="notdel">city &lt;&gt; 'Delhi'</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="lb" for="c-group">GROUP BY — key</label>
+          <select id="c-group">
+            <option value="dept">dept</option>
+            <option value="city">city</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="lb" for="c-agg">Aggregate</label>
+          <select id="c-agg">
+            <option value="COUNT">COUNT(*)</option>
+            <option value="AVG">AVG(salary)</option>
+            <option value="SUM">SUM(salary)</option>
+            <option value="MAX">MAX(salary)</option>
+            <option value="MIN">MIN(salary)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="lb">HAVING — groups</label>
+          <label class="switch">
+            <input type="checkbox" id="c-having" checked />
+            <span class="track"></span>
+            <span class="txt">enabled</span>
+          </label>
+          <div class="row2">
+            <select id="c-op" aria-label="HAVING operator">
+              <option value="&gt;=">&gt;=</option>
+              <option value="&gt;">&gt;</option>
+              <option value="&lt;=">&lt;=</option>
+              <option value="&lt;">&lt;</option>
+              <option value="=">=</option>
+            </select>
+            <input type="number" id="c-val" value="3" aria-label="HAVING threshold" />
+          </div>
+          <input type="range" id="c-slider" min="1" max="4" step="1" value="3" aria-label="HAVING threshold slider" />
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="hd"><h3>SQL</h3><span class="pill" id="sql-hint"></span></div>
+      <div class="bd"><pre class="sql" id="sql"></pre></div>
+    </div>
+
+    <div class="card">
+      <div class="hd"><h3>Rows · employees</h3><span class="pill" id="rows-pill"></span></div>
+      <div class="bd" style="padding:0"><table id="rows-tbl"></table></div>
+    </div>
+
+    <div class="card">
+      <div class="hd"><h3>Result</h3><span class="pill" id="result-pill"></span></div>
+      <div class="bd" style="padding:0" id="result"></div>
+    </div>
+
+  </div>
+
+  <div class="card groupsrow">
+    <div class="hd"><h3>Groups</h3><span class="pill" id="buckets-pill"></span></div>
+    <div class="bd"><div class="buckets" id="buckets"></div></div>
+  </div>
+
+</div>
+</div>
+
+<script>
+"use strict";
+
+/* ------------------------------------------------------------------ data */
+const DATA = [
+  {id:1, name:"Aarav",  dept:"Engineering", city:"Bengaluru", salary:95000},
+  {id:2, name:"Diya",   dept:"Engineering", city:"Bengaluru", salary:78000},
+  {id:3, name:"Ishita", dept:"Engineering", city:"Pune",      salary:120000},
+  {id:4, name:"Kabir",  dept:"Sales",       city:"Mumbai",    salary:52000},
+  {id:5, name:"Meera",  dept:"Sales",       city:"Delhi",     salary:61000},
+  {id:6, name:"Vivaan", dept:"Sales",       city:"Mumbai",    salary:45000},
+  {id:7, name:"Rohan",  dept:"Marketing",   city:"Mumbai",    salary:58000},
+  {id:8, name:"Ananya", dept:"Marketing",   city:"Delhi",     salary:72000}
+];
+
+const WHERES = {
+  none:   {sql:null,                     test:() => true},
+  sal60:  {sql:"salary >= <n>60000</n>", test:r => r.salary >= 60000},
+  sal50:  {sql:"salary >= <n>50000</n>", test:r => r.salary >= 50000},
+  mum:    {sql:"city = <s>'Mumbai'</s>", test:r => r.city === "Mumbai"},
+  notdel: {sql:"city <> <s>'Delhi'</s>", test:r => r.city !== "Delhi"}
+};
+
+const AGGS = {
+  COUNT:{label:"COUNT(*)",    calc:rs => rs.length,
+         dflt:3,      min:1,     max:4,      step:1},
+  AVG:  {label:"AVG(salary)", calc:rs => Math.round(rs.reduce((a,r)=>a+r.salary,0)/rs.length),
+         dflt:60000,  min:40000, max:120000, step:1000},
+  SUM:  {label:"SUM(salary)", calc:rs => rs.reduce((a,r)=>a+r.salary,0),
+         dflt:150000, min:40000, max:300000, step:5000},
+  MAX:  {label:"MAX(salary)", calc:rs => Math.max(...rs.map(r=>r.salary)),
+         dflt:80000,  min:40000, max:120000, step:1000},
+  MIN:  {label:"MIN(salary)", calc:rs => Math.min(...rs.map(r=>r.salary)),
+         dflt:50000,  min:40000, max:120000, step:1000}
+};
+
+const OPS = {">=":(a,b)=>a>=b, ">":(a,b)=>a>b, "<=":(a,b)=>a<=b, "<":(a,b)=>a<b, "=":(a,b)=>a===b};
+
+const STAGES = [
+  {key:"FROM",      label:"FROM"},
+  {key:"WHERE",     label:"WHERE"},
+  {key:"GROUP BY",  label:"GROUP BY"},
+  {key:"AGGREGATE", label:"Aggregate"},
+  {key:"HAVING",    label:"HAVING"},
+  {key:"SELECT",    label:"SELECT"}
+];
+
+const NARRATION = {
+  0:"Every row in the table. Nothing filtered or grouped yet.",
+  1:"<b>WHERE runs first, on rows.</b> A row dropped here never reaches a group.",
+  2:"Rows collapse into <b>buckets</b> — one per distinct key.",
+  3:"Each bucket becomes <b>one value</b>. That is what an aggregate does.",
+  4:"<b>HAVING is WHERE for groups</b> — it runs after aggregation, so it can see COUNT.",
+  5:"<b>One row per surviving group.</b> Never one row per employee."
+};
+
+const PALETTE = ["#0673F9","#009965","#B54708","#8B3DCF","#BE185D","#0E7490"];
+
+/* ------------------------------------------------------------------ state */
+const state = {stage:0, where:"none", group:"dept", agg:"COUNT", op:">=", val:3, having:true};
+let playTimer = null;
+
+const $  = s => document.querySelector(s);
+const nf = new Intl.NumberFormat("en-IN");
+const fmt = (agg,v) => agg === "COUNT" ? String(v) : nf.format(v);
+const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+
+/* ------------------------------------------------------------------ fit */
+function fit(){
+  const s = Math.min(window.innerWidth / 1600, window.innerHeight / 900);
+  $("#slide").style.transform = "translate(-50%, -50%) scale(" + s + ")";
+}
+window.addEventListener("resize", fit);
+
+/* ------------------------------------------------------------------ model */
+function compute(){
+  const w = WHERES[state.where];
+  const rows = DATA.map(r => ({...r, passWhere: w.test(r)}));
+  const kept = rows.filter(r => r.passWhere);
+
+  const map = new Map();
+  kept.forEach(r => {
+    const k = r[state.group];
+    if(!map.has(k)) map.set(k, []);
+    map.get(k).push(r);
+  });
+
+  const A = AGGS[state.agg];
+  let groups = [...map.entries()].map(([key,rs]) => {
+    const value = A.calc(rs);
+    return {key, rows:rs, value, passHaving: state.having ? OPS[state.op](value, state.val) : true};
+  });
+
+  groups.sort((a,b) => a.key.localeCompare(b.key));
+  groups.forEach((g,i) => g.color = PALETTE[i % PALETTE.length]);
+
+  return {rows, kept, groups, result: groups.filter(g => g.passHaving)};
+}
+
+/* ------------------------------------------------------------------ sql */
+function renderSQL(){
+  const A = AGGS[state.agg];
+  const cls = i => "clause" + (state.stage === i ? " live" : (state.stage > i ? " done" : ""));
+  const K = t => '<span class="kw">' + t + '</span>';
+  const F = t => '<span class="fn">' + t + '</span>';
+
+  const whereSql = WHERES[state.where].sql
+    ? WHERES[state.where].sql.replace(/<n>(.*?)<\/n>/g,'<span class="num">$1</span>')
+                             .replace(/<s>(.*?)<\/s>/g,'<span class="str">$1</span>')
+    : null;
+
+  let out = "";
+  out += '<span class="' + cls(5) + '">' + K("SELECT") + " " + state.group + ", " + F(A.label) + "</span>";
+  out += '<span class="' + cls(0) + '">' + K("FROM") + " employees</span>";
+  out += '<span class="' + (whereSql ? cls(1) : "clause off") + '">' + K("WHERE") + " " + (whereSql || "…") + "</span>";
+  out += '<span class="' + cls(2) + '">' + K("GROUP BY") + " " + state.group + "</span>";
+  out += '<span class="' + (state.having ? cls(4) : "clause off") + '">' + K("HAVING") + " " + F(A.label) + " " +
+         esc(state.op) + ' <span class="num">' + state.val + "</span></span>";
+
+  $("#sql").innerHTML = out;
+  $("#sql-hint").textContent = STAGES[state.stage].key;
+}
+
+/* ------------------------------------------------------------------ views */
+function renderStepper(){
+  $("#stepper").innerHTML = STAGES.map((s,i) => {
+    const c = i === state.stage ? "step live" : (i < state.stage ? "step done" : "step");
+    return '<button class="' + c + '" data-go="' + i + '"><span class="n">' + (i+1) + "</span>" + s.label + "</button>";
+  }).join("");
+  $("#btn-prev").disabled = state.stage === 0;
+  $("#btn-next").disabled = state.stage === STAGES.length - 1;
+}
+
+function renderRows(m){
+  const show = state.stage >= 1, showGrp = state.stage >= 2;
+  const colorOf = k => (m.groups.find(g => g.key === k) || {}).color || "var(--faint)";
+  const other = state.group === "dept" ? "city" : "dept";
+  const cols = showGrp ? ["name", other, "salary"] : ["name","dept","city","salary"];
+  const cell = (r,c) => c === "salary" ? nf.format(r.salary) : r[c];
+
+  let h = "<thead><tr>";
+  if(show) h += "<th></th>";
+  h += cols.map(c => "<th>" + c + "</th>").join("");
+  if(showGrp) h += "<th>group</th>";
+  h += "</tr></thead><tbody>";
+
+  m.rows.forEach(r => {
+    h += '<tr class="' + (!show ? "" : (r.passWhere ? "kept" : "rejected")) + '">';
+    if(show) h += '<td class="mark">' + (r.passWhere ? "✓" : "✕") + "</td>";
+    h += cols.map(c => "<td>" + cell(r,c) + "</td>").join("");
+    if(showGrp){
+      h += "<td>" + (r.passWhere
+            ? '<span class="grpdot" style="background:' + colorOf(r[state.group]) + '"></span>' + esc(r[state.group])
+            : '<span style="color:var(--faint)">—</span>') + "</td>";
+    }
+    h += "</tr>";
+  });
+  $("#rows-tbl").innerHTML = h + "</tbody>";
+  $("#rows-pill").textContent = show ? m.kept.length + " / " + DATA.length + " kept" : DATA.length + " rows";
+}
+
+function renderBuckets(m){
+  if(state.stage < 2){
+    $("#buckets").innerHTML = '<div class="idle">groups appear at step 3</div>';
+    $("#buckets-pill").textContent = "—";
+    return;
+  }
+
+  const A = AGGS[state.agg];
+  const showAgg = state.stage >= 3;
+  const showHav = state.stage >= 4 && state.having;
+
+  if(!m.groups.length){
+    $("#buckets").innerHTML = '<div class="idle warn">no rows survived WHERE — nothing to group</div>';
+    $("#buckets-pill").textContent = "0 groups";
+    return;
+  }
+
+  $("#buckets").style.gridAutoColumns = "1fr";
+  $("#buckets").innerHTML = m.groups.map((g,i) => {
+    const cls = !showHav ? "bucket" : (g.passHaving ? "bucket pass" : "bucket fail");
+    let h = '<div class="' + cls + '" style="animation-delay:' + (i*45) + 'ms">';
+    h += '<div class="bh"><span class="key"><span class="grpdot" style="background:' + g.color + '"></span>' +
+         '<span class="t">' + esc(g.key) + '</span></span><span class="cnt">' + g.rows.length + '</span></div>';
+    h += '<div class="vals">' + g.rows.map(r => nf.format(r.salary)).join(' <i>·</i> ') + "</div>";
+    if(showAgg) h += '<div class="aggbox"><span class="l">' + A.label + '</span><span class="v">' + fmt(state.agg, g.value) + "</span></div>";
+    if(showHav){
+      h += '<div class="verdict">' + (g.passHaving ? "✓ " : "✕ ") +
+           fmt(state.agg, g.value) + " " + esc(state.op) + " " + fmt(state.agg, state.val) + "</div>";
+    } else if(state.stage >= 4){
+      h += '<div class="verdict" style="color:var(--muted)">no HAVING · passes</div>';
+    }
+    return h + "</div>";
+  }).join("");
+
+  const kept = m.groups.filter(g => g.passHaving).length;
+  $("#buckets-pill").textContent = showHav ? kept + " / " + m.groups.length + " survive" : m.groups.length + " groups";
+}
+
+function renderResult(m){
+  if(state.stage < 5){
+    $("#result").innerHTML = '<div class="idle">result appears at step 6</div>';
+    $("#result-pill").textContent = "—";
+    return;
+  }
+
+  const A = AGGS[state.agg];
+  if(!m.result.length){
+    $("#result").innerHTML = '<div class="idle warn">empty — every group failed HAVING</div>';
+    $("#result-pill").textContent = "0 rows";
+    return;
+  }
+
+  let h = "<table><thead><tr><th>" + state.group + "</th><th>" + A.label + "</th></tr></thead><tbody>";
+  m.result.forEach(g => {
+    h += '<tr class="kept"><td><span class="grpdot" style="background:' + g.color + '"></span>' +
+         esc(g.key) + '</td><td><b>' + fmt(state.agg, g.value) + "</b></td></tr>";
+  });
+  $("#result").innerHTML = h + "</tbody></table>";
+  $("#result-pill").textContent = m.result.length + " row" + (m.result.length>1?"s":"");
+}
+
+function render(){
+  const m = compute();
+  renderStepper();
+  renderSQL();
+  $("#nar-badge").textContent = STAGES[state.stage].key;
+  $("#nar-text").innerHTML = NARRATION[state.stage];
+  renderRows(m);
+  renderBuckets(m);
+  renderResult(m);
+}
+
+/* ------------------------------------------------------------------ wiring */
+function syncValueControls(resetToDefault){
+  const A = AGGS[state.agg];
+  if(resetToDefault) state.val = A.dflt;
+  const s = $("#c-slider"), n = $("#c-val");
+  s.min = A.min; s.max = A.max; s.step = A.step;
+  s.value = Math.min(Math.max(state.val, A.min), A.max);
+  n.step = A.step; n.value = state.val;
+}
+
+function go(i){
+  state.stage = Math.max(0, Math.min(STAGES.length - 1, i));
+  render();
+}
+function stopPlay(){
+  clearInterval(playTimer); playTimer = null;
+  $("#btn-play").textContent = "▶ Play";
+}
+function startPlay(){
+  if(playTimer){ stopPlay(); return; }
+  if(state.stage === STAGES.length - 1) go(0);
+  $("#btn-play").textContent = "⏸ Pause";
+  playTimer = setInterval(() => {
+    if(state.stage >= STAGES.length - 1) stopPlay();
+    else go(state.stage + 1);
+  }, 1900);
+}
+
+$("#stepper").addEventListener("click", e => {
+  const b = e.target.closest("[data-go]");
+  if(b){ stopPlay(); go(+b.dataset.go); }
+});
+$("#btn-next").addEventListener("click",  () => { stopPlay(); go(state.stage + 1); });
+$("#btn-prev").addEventListener("click",  () => { stopPlay(); go(state.stage - 1); });
+$("#btn-reset").addEventListener("click", () => { stopPlay(); go(0); });
+$("#btn-play").addEventListener("click", startPlay);
+
+function toggleFullscreen(){
+  if(document.fullscreenElement) document.exitFullscreen();
+  else document.documentElement.requestFullscreen().catch(()=>{});
+}
+$("#btn-full").addEventListener("click", toggleFullscreen);
+
+$("#c-where").addEventListener("change",  e => { state.where = e.target.value; render(); });
+$("#c-group").addEventListener("change",  e => { state.group = e.target.value; render(); });
+$("#c-agg").addEventListener("change",    e => { state.agg = e.target.value; syncValueControls(true); render(); });
+$("#c-op").addEventListener("change",     e => { state.op = e.target.value; render(); });
+$("#c-having").addEventListener("change", e => { state.having = e.target.checked; render(); });
+$("#c-val").addEventListener("input", e => {
+  state.val = Number(e.target.value) || 0;
+  $("#c-slider").value = state.val;
+  render();
+});
+$("#c-slider").addEventListener("input", e => {
+  state.val = Number(e.target.value);
+  $("#c-val").value = state.val;
+  render();
+});
+document.addEventListener("keydown", e => {
+  if(e.target.matches("input,select,button")) return;
+  if(e.key === "ArrowRight" || e.key === " "){ e.preventDefault(); stopPlay(); go(state.stage + 1); }
+  if(e.key === "ArrowLeft"){ stopPlay(); go(state.stage - 1); }
+  if(e.key === "f" || e.key === "F"){ toggleFullscreen(); }
+});
+
+syncValueControls(false);
+fit();
+render();
+</script>
