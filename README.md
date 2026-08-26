@@ -7,7 +7,7 @@ explaining it, this page runs a query in front of the room — one clause at a t
 the engine is holding at each step:
 
 ```
-FROM → WHERE → GROUP BY → aggregates → HAVING → SELECT
+FROM → WHERE → GROUP BY → aggregates → HAVING → SELECT → ORDER BY → LIMIT
 ```
 
 Built for projection: everything lives on one 16:9 slide that scales to fill the screen, with no
@@ -33,6 +33,8 @@ Press **F** (or the ⛶ button) for fullscreen before presenting.
 - **GROUP BY** — bucket by `dept` or `city`
 - **Aggregate** — `COUNT(*)`, `AVG`, `SUM`, `MAX`, `MIN`
 - **HAVING** — operator and threshold, or switch the clause off entirely
+- **ORDER BY** — sort by the aggregate or by the group key, ascending or descending
+- **LIMIT** — top N, or `0` to switch the clause off
 - The SQL panel rewrites itself and highlights whichever clause is currently executing
 
 Every panel recomputes instantly, so you can answer "what if we moved that condition to WHERE?"
@@ -43,6 +45,12 @@ by actually doing it.
 `WHERE` filters **rows** before grouping — a dropped row can never reach a bucket, so it can never
 influence a `COUNT` or `AVG`. `HAVING` filters **groups** after aggregation, which is exactly why
 it can compare against `COUNT(*)` when `WHERE` cannot: at `WHERE` time that number does not exist yet.
+
+The last two steps extend the same argument to the other end of the pipeline. `ORDER BY` runs on
+finished rows, *after* `SELECT` — which is why it can use a `SELECT` alias when `HAVING` cannot.
+And `LIMIT` cuts last of all: step 8 keeps the discarded rows on screen, struck through below a
+dashed line, so it is obvious that sorting decides who makes the top N and `LIMIT` only stops
+counting. Change the sort direction with `LIMIT` on and watch a different clan get cut.
 
 ## Files
 
