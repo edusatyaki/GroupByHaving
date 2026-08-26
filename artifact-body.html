@@ -134,16 +134,19 @@
   /* ---------------- table ---------------- */
   .tbl{width:100%;height:100%;overflow:hidden}
   table{border-collapse:collapse;width:100%;table-layout:auto}
+  /* Sized for 12 rows x 5 columns. The original 8x4 deck used 20px/9px;
+     this table is denser, so type and padding are tightened to keep the
+     whole table visible with no clipping. */
   th{
-    text-align:left;font-size:16px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);
-    font-weight:700;padding:7px 10px;border-bottom:2px solid var(--line);white-space:nowrap;
+    text-align:left;font-size:13px;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);
+    font-weight:700;padding:4px 7px;border-bottom:2px solid var(--line);white-space:nowrap;
     background:var(--surface2);line-height:1.2;
   }
   td{
-    padding:9px 10px;border-bottom:1px solid var(--line2);font-family:var(--mono);
-    font-size:20px;white-space:nowrap;color:var(--ink);font-variant-numeric:tabular-nums;line-height:1.3;
+    padding:4px 7px;border-bottom:1px solid var(--line2);font-family:var(--mono);
+    font-size:17px;white-space:nowrap;color:var(--ink);font-variant-numeric:tabular-nums;line-height:1.25;
   }
-  td.mark{width:34px;text-align:center;font-size:19px;font-weight:700;padding-right:0}
+  td.mark{width:26px;text-align:center;font-size:16px;font-weight:700;padding-right:0}
   tbody tr{transition:opacity .3s,background .3s}
   tr.rejected{background:#FFF6F5}
   tr.rejected td{color:#B9424A;text-decoration:line-through;text-decoration-color:#E5A0A5}
@@ -230,27 +233,27 @@
           <label class="lb" for="c-where">WHERE — rows</label>
           <select id="c-where">
             <option value="none">(no WHERE)</option>
-            <option value="sal60">salary &gt;= 60000</option>
-            <option value="sal50">salary &gt;= 50000</option>
-            <option value="mum">city = 'Mumbai'</option>
-            <option value="notdel">city &lt;&gt; 'Delhi'</option>
+            <option value="sc80">score &gt;= 80</option>
+            <option value="sc70">score &gt;= 70</option>
+            <option value="gold">medal = 'Gold'</option>
+            <option value="medal">medal IS NOT NULL</option>
           </select>
         </div>
         <div class="field">
           <label class="lb" for="c-group">GROUP BY — key</label>
           <select id="c-group">
-            <option value="dept">dept</option>
-            <option value="city">city</option>
+            <option value="clan">clan</option>
+            <option value="sport">sport</option>
           </select>
         </div>
         <div class="field">
           <label class="lb" for="c-agg">Aggregate</label>
           <select id="c-agg">
             <option value="COUNT">COUNT(*)</option>
-            <option value="AVG">AVG(salary)</option>
-            <option value="SUM">SUM(salary)</option>
-            <option value="MAX">MAX(salary)</option>
-            <option value="MIN">MIN(salary)</option>
+            <option value="AVG">AVG(score)</option>
+            <option value="SUM">SUM(score)</option>
+            <option value="MAX">MAX(score)</option>
+            <option value="MIN">MIN(score)</option>
           </select>
         </div>
         <div class="field">
@@ -281,7 +284,7 @@
     </div>
 
     <div class="card">
-      <div class="hd"><h3>Rows · employees</h3><span class="pill" id="rows-pill"></span></div>
+      <div class="hd"><h3>Rows · students</h3><span class="pill" id="rows-pill"></span></div>
       <div class="bd" style="padding:0"><table id="rows-tbl"></table></div>
     </div>
 
@@ -304,36 +307,44 @@
 "use strict";
 
 /* ------------------------------------------------------------------ data */
+/* Clan of the Year — a 12-row extract of the 20-row lecture table.
+   Kept small so the type stays readable from the back of the hall.
+   Rajputana deliberately has NO Gold, and four students have no medal
+   at all (medal: null) — both matter for the WHERE presets below. */
 const DATA = [
-  {id:1, name:"Aarav",  dept:"Engineering", city:"Bengaluru", salary:95000},
-  {id:2, name:"Diya",   dept:"Engineering", city:"Bengaluru", salary:78000},
-  {id:3, name:"Ishita", dept:"Engineering", city:"Pune",      salary:120000},
-  {id:4, name:"Kabir",  dept:"Sales",       city:"Mumbai",    salary:52000},
-  {id:5, name:"Meera",  dept:"Sales",       city:"Delhi",     salary:61000},
-  {id:6, name:"Vivaan", dept:"Sales",       city:"Mumbai",    salary:45000},
-  {id:7, name:"Rohan",  dept:"Marketing",   city:"Mumbai",    salary:58000},
-  {id:8, name:"Ananya", dept:"Marketing",   city:"Delhi",     salary:72000}
+  {id:101, name:"Arjun",    clan:"Maratha",   sport:"Athletics", medal:"Gold",   score:92},
+  {id:102, name:"Sneha",    clan:"Maratha",   sport:"Swimming",  medal:"Silver", score:78},
+  {id:103, name:"Rohit",    clan:"Maratha",   sport:"Kabaddi",   medal:"Gold",   score:88},
+  {id:105, name:"Kunal",    clan:"Maratha",   sport:"Athletics", medal:null,     score:53},
+  {id:107, name:"Karthik",  clan:"Chola",     sport:"Chess",     medal:"Gold",   score:95},
+  {id:108, name:"Divya",    clan:"Chola",     sport:"Athletics", medal:"Gold",   score:90},
+  {id:110, name:"Lakshmi",  clan:"Chola",     sport:"Chess",     medal:"Silver", score:79},
+  {id:112, name:"Harsha",   clan:"Vijaya",    sport:"Kabaddi",   medal:"Gold",   score:89},
+  {id:113, name:"Ananya",   clan:"Vijaya",    sport:"Swimming",  medal:"Bronze", score:74},
+  {id:115, name:"Sushmita", clan:"Vijaya",    sport:"Chess",     medal:"Bronze", score:66},
+  {id:117, name:"Vikram",   clan:"Rajputana", sport:"Athletics", medal:"Silver", score:77},
+  {id:118, name:"Priya",    clan:"Rajputana", sport:"Chess",     medal:"Bronze", score:64}
 ];
 
 const WHERES = {
   none:   {sql:null,                     test:() => true},
-  sal60:  {sql:"salary >= <n>60000</n>", test:r => r.salary >= 60000},
-  sal50:  {sql:"salary >= <n>50000</n>", test:r => r.salary >= 50000},
-  mum:    {sql:"city = <s>'Mumbai'</s>", test:r => r.city === "Mumbai"},
-  notdel: {sql:"city <> <s>'Delhi'</s>", test:r => r.city !== "Delhi"}
+  sc80:   {sql:"score >= <n>80</n>",            test:r => r.score >= 80},
+  sc70:   {sql:"score >= <n>70</n>",            test:r => r.score >= 70},
+  gold:   {sql:"medal = <s>'Gold'</s>",         test:r => r.medal === "Gold"},
+  medal:  {sql:"medal <k>IS NOT NULL</k>",      test:r => r.medal !== null}
 };
 
 const AGGS = {
-  COUNT:{label:"COUNT(*)",    calc:rs => rs.length,
-         dflt:3,      min:1,     max:4,      step:1},
-  AVG:  {label:"AVG(salary)", calc:rs => Math.round(rs.reduce((a,r)=>a+r.salary,0)/rs.length),
-         dflt:60000,  min:40000, max:120000, step:1000},
-  SUM:  {label:"SUM(salary)", calc:rs => rs.reduce((a,r)=>a+r.salary,0),
-         dflt:150000, min:40000, max:300000, step:5000},
-  MAX:  {label:"MAX(salary)", calc:rs => Math.max(...rs.map(r=>r.salary)),
-         dflt:80000,  min:40000, max:120000, step:1000},
-  MIN:  {label:"MIN(salary)", calc:rs => Math.min(...rs.map(r=>r.salary)),
-         dflt:50000,  min:40000, max:120000, step:1000}
+  COUNT:{label:"COUNT(*)",   calc:rs => rs.length,
+         dflt:3,   min:1,  max:5,   step:1},
+  AVG:  {label:"AVG(score)", calc:rs => Math.round(rs.reduce((a,r)=>a+r.score,0)/rs.length),
+         dflt:78,  min:50, max:100, step:1},
+  SUM:  {label:"SUM(score)", calc:rs => rs.reduce((a,r)=>a+r.score,0),
+         dflt:240, min:50, max:400, step:10},
+  MAX:  {label:"MAX(score)", calc:rs => Math.max(...rs.map(r=>r.score)),
+         dflt:88,  min:50, max:100, step:1},
+  MIN:  {label:"MIN(score)", calc:rs => Math.min(...rs.map(r=>r.score)),
+         dflt:70,  min:40, max:100, step:1}
 };
 
 const OPS = {">=":(a,b)=>a>=b, ">":(a,b)=>a>b, "<=":(a,b)=>a<=b, "<":(a,b)=>a<b, "=":(a,b)=>a===b};
@@ -353,13 +364,13 @@ const NARRATION = {
   2:"Rows collapse into <b>buckets</b> — one per distinct key.",
   3:"Each bucket becomes <b>one value</b>. That is what an aggregate does.",
   4:"<b>HAVING is WHERE for groups</b> — it runs after aggregation, so it can see COUNT.",
-  5:"<b>One row per surviving group.</b> Never one row per employee."
+  5:"<b>One row per surviving group.</b> Never one row per student."
 };
 
 const PALETTE = ["#0673F9","#009965","#B54708","#8B3DCF","#BE185D","#0E7490"];
 
 /* ------------------------------------------------------------------ state */
-const state = {stage:0, where:"none", group:"dept", agg:"COUNT", op:">=", val:3, having:true};
+const state = {stage:0, where:"none", group:"clan", agg:"COUNT", op:">=", val:3, having:true};
 let playTimer = null;
 
 const $  = s => document.querySelector(s);
@@ -409,11 +420,12 @@ function renderSQL(){
   const whereSql = WHERES[state.where].sql
     ? WHERES[state.where].sql.replace(/<n>(.*?)<\/n>/g,'<span class="num">$1</span>')
                              .replace(/<s>(.*?)<\/s>/g,'<span class="str">$1</span>')
+                             .replace(/<k>(.*?)<\/k>/g,'<span class="kw">$1</span>')
     : null;
 
   let out = "";
   out += '<span class="' + cls(5) + '">' + K("SELECT") + " " + state.group + ", " + F(A.label) + "</span>";
-  out += '<span class="' + cls(0) + '">' + K("FROM") + " employees</span>";
+  out += '<span class="' + cls(0) + '">' + K("FROM") + " students</span>";
   out += '<span class="' + (whereSql ? cls(1) : "clause off") + '">' + K("WHERE") + " " + (whereSql || "…") + "</span>";
   out += '<span class="' + cls(2) + '">' + K("GROUP BY") + " " + state.group + "</span>";
   out += '<span class="' + (state.having ? cls(4) : "clause off") + '">' + K("HAVING") + " " + F(A.label) + " " +
@@ -436,9 +448,9 @@ function renderStepper(){
 function renderRows(m){
   const show = state.stage >= 1, showGrp = state.stage >= 2;
   const colorOf = k => (m.groups.find(g => g.key === k) || {}).color || "var(--faint)";
-  const other = state.group === "dept" ? "city" : "dept";
-  const cols = showGrp ? ["name", other, "salary"] : ["name","dept","city","salary"];
-  const cell = (r,c) => c === "salary" ? nf.format(r.salary) : r[c];
+  const other = state.group === "clan" ? "sport" : "clan";
+  const cols = showGrp ? ["name", other, "medal", "score"] : ["name","clan","sport","medal","score"];
+  const cell = (r,c) => r[c] === null ? '<span style="color:var(--faint)">—</span>' : esc(r[c]);
 
   let h = "<thead><tr>";
   if(show) h += "<th></th>";
@@ -484,7 +496,7 @@ function renderBuckets(m){
     let h = '<div class="' + cls + '" style="animation-delay:' + (i*45) + 'ms">';
     h += '<div class="bh"><span class="key"><span class="grpdot" style="background:' + g.color + '"></span>' +
          '<span class="t">' + esc(g.key) + '</span></span><span class="cnt">' + g.rows.length + '</span></div>';
-    h += '<div class="vals">' + g.rows.map(r => nf.format(r.salary)).join(' <i>·</i> ') + "</div>";
+    h += '<div class="vals">' + g.rows.map(r => r.score).join(' <i>·</i> ') + "</div>";
     if(showAgg) h += '<div class="aggbox"><span class="l">' + A.label + '</span><span class="v">' + fmt(state.agg, g.value) + "</span></div>";
     if(showHav){
       h += '<div class="verdict">' + (g.passHaving ? "✓ " : "✕ ") +

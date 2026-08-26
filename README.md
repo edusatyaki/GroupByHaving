@@ -56,6 +56,20 @@ connection. Everything else is offline — worth opening it once before you pres
 
 ## Data
 
-Eight rows of fictional employee data are embedded in `index.html` (the `DATA` array). Kept
-deliberately small so the type can stay large enough to read from a distance. Edit that array to
-swap in your own example.
+Twelve rows of **Clan of the Year** data are embedded in `index.html` (the `DATA` array): students
+divided across four clans — Maratha, Chola, Vijaya, Rajputana — who competed in four sports and
+earned Gold, Silver or Bronze. It is an extract of the 20-row table used in the accompanying
+lecture, trimmed so the type stays large enough to read from the back of a hall.
+
+Three properties of this data are deliberate, and worth knowing before you present:
+
+- **Rajputana won no Gold.** Set `WHERE` to `medal = 'Gold'` and the Rajputana bucket disappears
+  entirely — rows removed before grouping can never form a group. This is the single most useful
+  thing on the slide.
+- **Four students have no medal at all** (`medal: null`). `WHERE medal IS NOT NULL` drops exactly
+  those four, which makes every clan average jump.
+- **The clans are uneven** — 4, 3, 3 and 2 students. With the default `HAVING COUNT(*) >= 3`,
+  Rajputana is the one that fails, so there is always something visibly failing on screen.
+
+Edit the `DATA` array to swap in your own example. If you add rows, check the table panel still
+fits: it is sized for roughly twelve rows and clips silently rather than scrolling.
